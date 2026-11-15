@@ -22,6 +22,8 @@ namespace InvincibleMinions
         private float timer;
         private bool ready;
         private bool loggedTick;
+        private bool loggedInsts;
+        private bool loggedSetFail;
 
         protected override void OnSpawn()
         {
@@ -112,12 +114,48 @@ namespace InvincibleMinions
 
         private void ResetAll()
         {
-            // 血量兜底（不依赖 Db 是否就绪）
-            if (health != null && health.hitPoints < health.maxHitPoints)
+            try
             {
-                health.hitPoints = health.maxHitPoints;
+                if (health != null && health.hitPoints < health.maxHitPoints)
+                {
+                    health.hitPoints = health.maxHitPoints;
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[InvincibleMinions] health reset failed: " + e.Message);
             }
 
+            // 路径 A：直写 AmountInstance.value（不依赖 id 字典匹配）
+            try
+            {
+                AmountInstance[] insts = GetComponentsInChildren<AmountInstance>(true);
+                if (insts != null)
+                {
+                    if (!loggedInsts)
+                    {
+                        loggedInsts = true;
+                        Debug.Log("[InvincibleMinions] amount instances=" + insts.Length);
+                    }
+                    for (int i = 0; i < insts.Length; i++)
+                    {
+                        AmountInstance inst = insts[i];
+                        if (inst == null) continue;
+                        string id = null;
+                        try { if (inst.amount != null) id = inst.amount.Id; } catch { id = null; }
+                        if (string.IsNullOrEmpty(id)) continue;
+                        int mode = ModeOf(id);
+                        if (mode == 0) continue;
+                        try { inst.value = mode > 0 ? inst.GetMax() : inst.GetMin(); } catch { }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[InvincibleMinions] inst path failed: " + e.Message);
+            }
+
+            // 路径 B：Amounts.SetValue（每条独立容错，单条失败不中断）
             Db db = Db.Get();
             if (db == null) return;
             Database.Amounts defs = db.Amounts;
@@ -130,7 +168,6 @@ namespace InvincibleMinions
                     Fill(defs.Breath);
                     Fill(defs.ImmuneLevel);
                     Fill(defs.HitPoints);
-                    // Bionic DLC 的数值条：未装 DLC 时这些 Amount 为 null，Fill 内部判空
                     Fill(defs.BionicInternalBattery);
                     Fill(defs.BionicOxygenTank);
                     Fill(defs.BionicOil);
@@ -145,13 +182,14 @@ namespace InvincibleMinions
 
             if (consumer != null && db.Urges != null)
             {
-                if (NoToilet)
+                try
                 {
-                    consumer.RemoveUrge(db.Urges.Pee);
+                    if (NoToilet) consumer.RemoveUrge(db.Urges.Pee);
+                    if (NoSleep) consumer.RemoveUrge(db.Urges.Sleep);
                 }
-                if (NoSleep)
+                catch (Exception e)
                 {
-                    consumer.RemoveUrge(db.Urges.Sleep);
+                    if (Verbose) Debug.LogWarning("[InvincibleMinions] urge: " + e.Message);
                 }
             }
         }
@@ -206,13 +244,31 @@ namespace InvincibleMinions
             if (amount == null) return;
             float max = MaxOf(amount);
             if (max <= 0f) return;
-            amounts.SetValue(amount.Id, max);
+            SafeSet(amount, max);
         }
 
         private void Drain(Amount amount)
         {
             if (amount == null) return;
-            amounts.SetValue(amount.Id, 0f);
+            SafeSet(amount, 0f);
+        }
+
+        // Amounts.SetValue 对未知 id 会直接抛 NRE（内部字典查不到）——单条独立容错
+        private void SafeSet(Amount amount, float value)
+        {
+            if (amount == null || amounts == null) return;
+            try
+            {
+                amounts.SetValue(amount.Id, value);
+            }
+            catch (Exception e)
+            {
+                if (!loggedSetFail)
+                {
+                    loggedSetFail = true;
+                    Debug.LogWarning("[InvincibleMinions] SetValue failed for " + amount.Id + " -> " + value + ": " + e.Message);
+                }
+            }
         }
 
         private float MaxOf(Amount amount)
