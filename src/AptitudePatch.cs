@@ -12,7 +12,9 @@ namespace InvincibleMinions
     // 兴趣 = skillAptitudes：只影响学习速度，不影响已掌握技能。
     public static class AptitudeEnhancer
     {
-        public const int AptitudeValue = 100;
+        // 原版兴趣最高 +3。技能界面会拿这个值做等级渲染/索引，
+        // 写 1000000 会让 UI 越界（实测：点技能界面直接崩，且无托管异常栈）。
+        public const int AptitudeValue = 20;
         private static readonly BindingFlags Inst = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
         private static List<Database.SkillGroup> cachedGroups;
 
