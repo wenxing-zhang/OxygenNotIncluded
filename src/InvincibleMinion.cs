@@ -22,7 +22,6 @@ namespace InvincibleMinions
         private float timer;
         private bool ready;
         private bool loggedTick;
-        private int lastInstanceCount;
 
         protected override void OnSpawn()
         {

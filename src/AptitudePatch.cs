@@ -45,11 +45,19 @@ namespace InvincibleMinions
                 foreach (object o in e)
                 {
                     Database.SkillGroup g = o as Database.SkillGroup;
-                    if (g != null) groups.Add(g);
+                    if (g == null) continue;
+                    // 已废弃 / 不可作为兴趣的组：其 choreGroupID 可能已本地化（如「游泳」），
+                    // UI 拿它去 Db.ChoreGroups 查英文 id 会失败（Could not find ChoreGroup: 游泳）
+                    if (!g.allowAsAptitude) continue;
+                    groups.Add(g);
                 }
             }
             cachedGroups = groups;
             Debug.Log("[InvincibleMinions] skill groups=" + groups.Count);
+            for (int i = 0; i < groups.Count; i++)
+            {
+                Debug.Log("[InvincibleMinions] group " + groups[i].Id + " chore=" + groups[i].choreGroupID);
+            }
             return groups;
         }
 
