@@ -12,9 +12,9 @@ namespace InvincibleMinions
         public static bool Physiology = true;
         public static bool NoToilet = true;
         public static bool NoSleep = true;
-        public static bool AllSkills = true;
+        public static bool AllSkills = false;   // 临时关闭：技能界面崩溃疑似来源
         public static bool MaxAttributes = true;
-        public static bool Verbose = false;
+        public static bool Verbose = true;
 
         private Amounts amounts;
         private Attributes attributes;

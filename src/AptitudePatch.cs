@@ -12,7 +12,7 @@ namespace InvincibleMinions
     // 兴趣 = skillAptitudes：只影响学习速度，不影响已掌握技能。
     public static class AptitudeEnhancer
     {
-        public const int AptitudeValue = 1000000;
+        public const int AptitudeValue = 100;
         private static readonly BindingFlags Inst = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
         private static List<Database.SkillGroup> cachedGroups;
 
