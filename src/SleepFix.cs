@@ -4,41 +4,20 @@ using Klei.AI;
 namespace InvincibleMinions
 {
     // ---------- 不睡觉 ----------
-    // 之前只把 Stamina 拉满 + 移除 Sleep urge，挡不住「睡觉」：
-    // 复制人的睡眠由 SleepChoreMonitor 的状态机创建 chore（日程到点 / 疲劳 / 昏倒），
-    // 另有 Narcolepsy 特质会随机打瞌睡。这里把创建入口和特质判定一起按死。
-    [HarmonyPatch(typeof(SleepChoreMonitor), "CreateSleepChore")]
-    public static class Patch_Sleep_CreateSleepChore
-    {
-        public static bool Prefix() { return false; }
-    }
+    // 血泪教训：不要拦 SleepChoreMonitor 的 Create*Chore。
+    // 它们是 GameStateMachine.SetupChore 的 create_chore_callback，返回值会被立刻解引用；
+    // Prefix 返回 false 让回调不执行 -> chore 为 null -> SetupChore 里 NullReferenceException
+    // （实测：Exception in (Minion).SleepChoreMonitor.root.sleeponfloor）。
+    // 正确做法：让 chore 正常创建，再在 InvincibleMinion 的周期里用 ChoreDriver.StopChore 取消。
 
-    [HarmonyPatch(typeof(SleepChoreMonitor), "CreateExhaustedSleepChore")]
-    public static class Patch_Sleep_CreateExhaustedSleepChore
-    {
-        public static bool Prefix() { return false; }
-    }
-
-    [HarmonyPatch(typeof(SleepChoreMonitor), "CreatePassingOutChore")]
-    public static class Patch_Sleep_CreatePassingOutChore
-    {
-        public static bool Prefix() { return false; }
-    }
-
-    [HarmonyPatch(typeof(SleepChoreMonitor), "CreateSleepOnFloorChore")]
-    public static class Patch_Sleep_CreateSleepOnFloorChore
-    {
-        public static bool Prefix() { return false; }
-    }
-
+    // Narcolepsy 是纯条件查询，拦它安全（不涉及 chore 创建）。
     [HarmonyPatch(typeof(Narcolepsy), "IsNarcolepsing")]
     public static class Patch_Narcolepsy_IsNarcolepsing
     {
         public static bool Prefix(ref bool __result) { __result = false; return false; }
     }
 
-    // 仿生复制人没有普通睡眠，睡觉时段会进入 BionicBedTimeModeChore（「碎片整理」）。
-    // 它由 BionicBedTimeMonitor 驱动，和 SleepChoreMonitor 完全两套，必须单独拦。
+    // 仿生复制人的「碎片整理」也是纯条件查询，安全。
     [HarmonyPatch(typeof(BionicBedTimeMonitor), "CanGoToBedTime")]
     public static class Patch_BionicBedTime_CanGoToBedTime
     {

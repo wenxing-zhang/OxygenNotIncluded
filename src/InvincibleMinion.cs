@@ -182,6 +182,19 @@ namespace InvincibleMinions
             // 环境阈值每 tick 复写（可能被游戏状态机重置）；疾病治疗每 2 秒一次
             try { EnvironmentRuntime.Apply(gameObject); }
             catch { }
+            // 睡眠 chore 由 SleepChoreMonitor 状态机创建；拦创建入口会让 SetupChore 拿到 null 并抛 NRE。
+            // 这里改成：chore 正常创建，周期里直接停掉。
+            try
+            {
+                ChoreDriver driver = TraitRuntime.Find<ChoreDriver>(gameObject);
+                if (driver != null && driver.HasChore())
+                {
+                    Chore current = driver.GetCurrentChore();
+                    if (current is SleepChore) driver.StopChore();
+                }
+            }
+            catch { }
+
             tick++;
             // 负面 effect 每 tick 摘一遍（极度明亮 / 致命辐射病 / 鼓膜破裂 等）
             try { EffectPurge.Purge(gameObject); }
