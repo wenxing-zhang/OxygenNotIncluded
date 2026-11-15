@@ -36,4 +36,24 @@ namespace InvincibleMinions
     {
         public static bool Prefix(ref bool __result) { __result = false; return false; }
     }
+
+    // 仿生复制人没有普通睡眠，睡觉时段会进入 BionicBedTimeModeChore（「碎片整理」）。
+    // 它由 BionicBedTimeMonitor 驱动，和 SleepChoreMonitor 完全两套，必须单独拦。
+    [HarmonyPatch(typeof(BionicBedTimeMonitor), "CanGoToBedTime")]
+    public static class Patch_BionicBedTime_CanGoToBedTime
+    {
+        public static bool Prefix(ref bool __result) { __result = false; return false; }
+    }
+
+    [HarmonyPatch(typeof(BionicBedTimeMonitor), "ScheduleIsInBedTime")]
+    public static class Patch_BionicBedTime_ScheduleIsInBedTime
+    {
+        public static bool Prefix(ref bool __result) { __result = false; return false; }
+    }
+
+    [HarmonyPatch(typeof(BionicBedTimeModeChore), "IsBedTimeAllowed")]
+    public static class Patch_BionicBedTime_IsBedTimeAllowed
+    {
+        public static bool Prefix(ref bool __result) { __result = false; return false; }
+    }
 }
