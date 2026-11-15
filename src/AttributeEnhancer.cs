@@ -9,9 +9,9 @@ namespace InvincibleMinions
     public static class AttributeEnhancer
     {
         public const float Big = 1000000f;
-        // 移动速度：由 Athletics 驱动。100 太保守（用户反馈不够快），
-        // 但 1000000 会让小人一帧跨越多个格子（穿墙/寻路抖动），取中间值。
-        public const float AthleticsValue = 10000f;
+        // 移动速度：由 Athletics 驱动。ONI 换算 = 1.0 + 0.1 × Athletics（格/秒）。
+        // 1000 => 101 格/秒（约原版 34 倍）；10000 会到 1001 格/秒（一帧 16 格，必穿墙）。
+        public const float AthleticsValue = 1000f;
 
         // 越大越好（注意：FoodQuality / QualityOfLife 会推高士气，已移出，
         // 否则技能面板的「士气/需求」会变成 1000013/0 这类非法值）
