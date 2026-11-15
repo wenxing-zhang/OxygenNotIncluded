@@ -6,54 +6,57 @@ using UnityEngine;
 
 namespace InvincibleMinions
 {
-    // R7 + R10：选人界面生成候选时，改动一律放在 GenerateStats 全部跑完之后。
-    // v0.4 崩溃教训：在 GenerateAptitudes / GenerateTraits 的 Postfix 里立刻改，
-    // 会让 GenerateStats 内部后续步骤（GenerateAttributes）按原数量做索引 → 越界。
-    [HarmonyPatch(typeof(MinionStartingStats), "GenerateStats")]
-    public static class Patch_MinionStartingStats_GenerateStats
+    // 已停用（v0.6）：在 MinionStartingStats.GenerateStats 的 Postfix 里删除 Traits 列表项，
+    // 会让 MinionStartingStats 的 stressTrait / joyTrait / congenitaltrait 字段指向
+    // 「已不在列表中的对象」，CharacterContainer.SetInfoText 随即抛 NullReferenceException，
+    // 选人界面直接崩。
+    //
+    // 现在改为运行期处理（InvincibleMinion.Init → TraitRuntime.Apply），不碰 MinionStartingStats。
+    public static class TraitRuntime
     {
-        public static void Postfix(MinionStartingStats __instance)
+        public static void Apply(GameObject go)
         {
-            if (__instance == null) return;
-
-            // 1) 剔除负面特质
+            if (go == null) return;
+            Traits traits = Find<Traits>(go);
+            if (traits == null)
+            {
+                Debug.LogWarning("[InvincibleMinions] Traits component not found on " + go.name);
+                return;
+            }
             try
             {
-                List<Trait> traits = __instance.Traits;
-                if (traits != null)
+                List<Trait> list = traits.TraitList;
+                if (list == null) return;
+                int removed = 0;
+                for (int i = list.Count - 1; i >= 0; i--)
                 {
-                    for (int i = traits.Count - 1; i >= 0; i--)
+                    Trait t = list[i];
+                    if (t != null && !t.PositiveTrait)
                     {
-                        Trait t = traits[i];
-                        if (t != null && !t.PositiveTrait)
-                        {
-                            traits.RemoveAt(i);
-                        }
+                        traits.Remove(t);
+                        removed++;
                     }
                 }
-            }
-            catch (Exception e)
-            {
-                Debug.LogWarning("[InvincibleMinions] trait filter failed: " + e.Message);
-            }
-
-            // 2) 所有兴趣 = 1000000
-            try
-            {
-                List<Database.SkillGroup> groups = AptitudeEnhancer.GetSkillGroups();
-                if (groups.Count == 0) return;
-                if (__instance.skillAptitudes == null) return;
-                __instance.skillAptitudes.Clear();
-                for (int i = 0; i < groups.Count; i++)
+                if (removed > 0)
                 {
-                    __instance.skillAptitudes[groups[i]] = AptitudeEnhancer.AptitudeValue;
+                    Debug.Log("[InvincibleMinions] removed " + removed + " negative trait(s) from " + go.name);
                 }
-                Debug.Log("[InvincibleMinions] starter stats patched: traits=" + (__instance.Traits == null ? -1 : __instance.Traits.Count) + " aptitudes=" + __instance.skillAptitudes.Count);
             }
             catch (Exception e)
             {
-                Debug.LogWarning("[InvincibleMinions] aptitude fill failed: " + e.Message);
+                Debug.LogWarning("[InvincibleMinions] trait runtime failed: " + e.Message);
             }
+        }
+
+        // 组件可能在父/子物体上，三级兜底
+        public static T Find<T>(GameObject go) where T : Component
+        {
+            if (go == null) return null;
+            T c = go.GetComponent<T>();
+            if (c != null) return c;
+            c = go.GetComponentInParent<T>();
+            if (c != null) return c;
+            return go.GetComponentInChildren<T>();
         }
     }
 }

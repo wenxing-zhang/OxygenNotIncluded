@@ -51,10 +51,15 @@ namespace InvincibleMinions
             if (ready) return;
             try
             {
-                amounts = GetComponent<Amounts>();
-                attributes = GetComponent<Attributes>();
-                health = GetComponent<Health>();
-                consumer = GetComponent<ChoreConsumer>();
+                // Amounts / Attributes 不是 Component，宿主是 Modifiers 组件的 public 字段
+                Modifiers mods = TraitRuntime.Find<Modifiers>(gameObject);
+                if (mods != null)
+                {
+                    amounts = mods.amounts;
+                    attributes = mods.attributes;
+                }
+                health = TraitRuntime.Find<Health>(gameObject);
+                consumer = TraitRuntime.Find<ChoreConsumer>(gameObject);
                 if (health != null)
                 {
                     health.canBeIncapacitated = false;
@@ -76,8 +81,34 @@ namespace InvincibleMinions
             try { AptitudeEnhancer.Apply(gameObject); }
             catch (Exception e) { Debug.LogError("[InvincibleMinions] aptitudes failed: " + e); }
 
+            try { TraitRuntime.Apply(gameObject); }
+            catch (Exception e) { Debug.LogError("[InvincibleMinions] traits failed: " + e); }
+
             ready = true;
-            Debug.Log("[InvincibleMinions] init " + name + " amounts=" + (amounts != null) + " insts=" + lastInstanceCount);
+            Debug.Log("[InvincibleMinions] init " + name
+                + " amounts=" + (amounts != null)
+                + " attrs=" + (attributes != null)
+                + " health=" + (health != null)
+                + " comps=" + DescribeComponents());
+            ProbeBladder();
+        }
+
+        // 一次性自检：证明 SetValue 真的能改数值
+        private void ProbeBladder()
+        {
+            if (amounts == null) return;
+            try
+            {
+                float before = amounts.GetValue("Bladder");
+                amounts.SetValue("Bladder", 0f);
+                float after = amounts.GetValue("Bladder");
+                float cal = amounts.GetValue("Calories");
+                Debug.Log("[InvincibleMinions] probe bladder " + before + " -> " + after + " | calories=" + cal);
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[InvincibleMinions] probe failed: " + e.Message);
+            }
         }
 
         private void ResetAll()
@@ -88,32 +119,6 @@ namespace InvincibleMinions
                 health.hitPoints = health.maxHitPoints;
             }
 
-            // 路径 A：直接写 AmountInstance.value（不依赖 id 字典匹配）
-            AmountInstance[] insts = null;
-            try { insts = GetComponents<AmountInstance>(); }
-            catch { insts = null; }
-            if (insts != null)
-            {
-                lastInstanceCount = insts.Length;
-                for (int i = 0; i < insts.Length; i++)
-                {
-                    AmountInstance inst = insts[i];
-                    if (inst == null) continue;
-                    string id = null;
-                    try { if (inst.amount != null) id = inst.amount.Id; }
-                    catch { id = null; }
-                    if (string.IsNullOrEmpty(id)) continue;
-                    int mode = ModeOf(id);
-                    if (mode == 0) continue;
-                    try
-                    {
-                        inst.value = mode > 0 ? inst.GetMax() : inst.GetMin();
-                    }
-                    catch { }
-                }
-            }
-
-            // 路径 B：Amounts.SetValue 兜底（id 若与内部 key 不一致则跳过，不影响 A）
             Db db = Db.Get();
             if (db == null) return;
             Database.Amounts defs = db.Amounts;
@@ -149,6 +154,25 @@ namespace InvincibleMinions
                 {
                     consumer.RemoveUrge(db.Urges.Sleep);
                 }
+            }
+        }
+
+        // 诊断：当前物体上有哪些组件（定位 Amounts 为什么拿不到）
+        private string DescribeComponents()
+        {
+            try
+            {
+                Component[] all = GetComponents<Component>();
+                string s = "";
+                for (int i = 0; i < all.Length && i < 40; i++)
+                {
+                    if (all[i] != null) s += all[i].GetType().Name + "|";
+                }
+                return s;
+            }
+            catch (Exception e)
+            {
+                return "err:" + e.Message;
             }
         }
 

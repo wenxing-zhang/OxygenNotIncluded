@@ -41,7 +41,9 @@ namespace InvincibleMinions
         public static void Apply(GameObject go)
         {
             if (go == null) return;
-            Attributes attributes = go.GetComponent<Attributes>();
+            Modifiers mods = TraitRuntime.Find<Modifiers>(go);
+            if (mods == null) return;
+            Attributes attributes = mods.attributes;
             if (attributes == null) return;
             Db db = Db.Get();
             if (db == null) return;

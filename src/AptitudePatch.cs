@@ -57,7 +57,7 @@ namespace InvincibleMinions
         public static void Apply(GameObject go)
         {
             if (go == null) return;
-            MinionResume resume = go.GetComponent<MinionResume>();
+            MinionResume resume = TraitRuntime.Find<MinionResume>(go);
             if (resume == null) return;
             List<Database.SkillGroup> groups = GetSkillGroups();
             if (groups.Count == 0)
