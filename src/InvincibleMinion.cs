@@ -25,6 +25,7 @@ namespace InvincibleMinions
         private bool loggedTick;
         private bool loggedInsts;
         private bool loggedSetFail;
+        private int tick;
         // 记录 Amounts 里不存在的条（例如未装 Bionic DLC 的条），只试一次
         private readonly HashSet<string> failedIds = new HashSet<string>();
 
@@ -87,6 +88,12 @@ namespace InvincibleMinions
 
             try { TraitRuntime.Apply(gameObject); }
             catch (Exception e) { Debug.LogError("[InvincibleMinions] traits failed: " + e); }
+
+            try { EnvironmentRuntime.Apply(gameObject); }
+            catch (Exception e) { Debug.LogError("[InvincibleMinions] environment failed: " + e); }
+
+            try { EnvironmentRuntime.CureAll(gameObject); }
+            catch (Exception e) { Debug.LogError("[InvincibleMinions] cure failed: " + e); }
 
             ready = true;
             Debug.Log("[InvincibleMinions] init " + name
@@ -194,6 +201,16 @@ namespace InvincibleMinions
                 {
                     if (Verbose) Debug.LogWarning("[InvincibleMinions] urge: " + e.Message);
                 }
+            }
+
+            // 环境阈值每 tick 复写（可能被游戏状态机重置）；疾病治疗每 2 秒一次
+            try { EnvironmentRuntime.Apply(gameObject); }
+            catch { }
+            tick++;
+            if ((tick & 3) == 0)
+            {
+                try { EnvironmentRuntime.CureAll(gameObject); }
+                catch { }
             }
         }
 

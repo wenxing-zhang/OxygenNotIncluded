@@ -48,7 +48,7 @@ namespace InvincibleMinions
             }
         }
 
-        // 组件可能在父/子物体上，三级兜底
+        // 组件可能在父/子/兄弟物体上，四级兜底（Health 就不在本节点）
         public static T Find<T>(GameObject go) where T : Component
         {
             if (go == null) return null;
@@ -56,7 +56,10 @@ namespace InvincibleMinions
             if (c != null) return c;
             c = go.GetComponentInParent<T>();
             if (c != null) return c;
-            return go.GetComponentInChildren<T>();
+            c = go.GetComponentInChildren<T>(true);
+            if (c != null) return c;
+            try { return go.transform.root.GetComponentInChildren<T>(true); }
+            catch { return null; }
         }
     }
 }

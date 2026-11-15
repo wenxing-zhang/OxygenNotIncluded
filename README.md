@@ -12,7 +12,10 @@
 | 不受伤 / 不死 | `src/Patches.cs` | Harmony Prefix 拦 `Health.Damage` / `DoDamage` / `Kill` / `Incapacitate` |
 | 不失能 | `src/InvincibleMinion.cs` | `Health.canBeIncapacitated = false` |
 | 不饿 / 不窒息 / 不生病 / 不辐射 / 不上厕所 / 不睡觉 | `src/InvincibleMinion.cs` | 每 0.5s 直接写 `AmountInstance.value`（拉满或归零），并用 `Amounts.SetValue` 兜底 |
-| 疾病不感染 | 计划中（`GermExposureMonitor`） | 当前版本靠 `ImmuneLevel` 拉满 |
+| 疾病不感染 | `src/Environment.cs` | `GermExposureMonitor.GetContractionChance` Prefix → 0 |
+| 已感染的疾病被清除 | `src/Environment.cs` | 每 2 秒遍历 `Modifiers.sicknesses` → `Sickness.Cure(go, null)` |
+| 烫伤 / 冻伤无效 | `src/Environment.cs` | `ScaldingMonitor.TakeScaldDamage` / `TakeColdDamage` Prefix → false；另加 `ScaldingThreshold`/`ScoldingThreshold` = 1000000 |
+| 不缺氧 | `src/Environment.cs` | `OxygenBreather.noOxygenThreshold` / `lowOxygenThreshold` = 0 |
 | 全技能 | `src/SkillEnhancer.cs` | 只取 Db **真实注册**的技能表（反射 `ResourceSet<Skill>.resources`），fail-closed |
 | 全属性 | `src/AttributeEnhancer.cs` | 白名单 35 项 = 1000000（`Athletics` = 100）；黑名单 4 项 = 0；槽位类与隔热不碰 |
 | 全兴趣 = 1000000 | `src/AptitudePatch.cs` | 运行期 `SetAptitude(HashedString, float)`；选人界面在 `GenerateStats` Postfix 填充 |
