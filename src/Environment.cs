@@ -31,10 +31,43 @@ namespace InvincibleMinions
         public static bool Prefix() { return false; }
     }
 
+    // ---------- C2 窒息：直接否决缺氧判定（SuffocationMonitor 是状态机，改不了字段）----------
+    [HarmonyPatch(typeof(OxygenBreather), "get_IsOutOfOxygen")]
+    public static class Patch_IsOutOfOxygen
+    {
+        public static bool Prefix(ref bool __result)
+        {
+            __result = false;
+            return false;
+        }
+    }
+
+    [HarmonyPatch(typeof(OxygenBreather), "get_HasOxygen")]
+    public static class Patch_HasOxygen
+    {
+        public static bool Prefix(ref bool __result)
+        {
+            __result = true;
+            return false;
+        }
+    }
+
+    // ---------- C3 冻伤：冷阈值的 static 字段改不了，改它的取值方法 ----------
+    [HarmonyPatch(typeof(ExternalTemperatureMonitor), "GetExternalColdThreshold")]
+    public static class Patch_GetExternalColdThreshold
+    {
+        public static bool Prefix(ref float __result)
+        {
+            __result = -273f;
+            return false;
+        }
+    }
+
     // ---------- C/D 组运行期处理 ----------
     public static class EnvironmentRuntime
     {
         private static bool logged;
+        private static bool loggedContainer;
 
         public static void Apply(GameObject go)
         {
@@ -72,9 +105,24 @@ namespace InvincibleMinions
                 if (mods == null) return;
                 object container = mods.sicknesses;
                 if (container == null) return;
+                if (!loggedContainer)
+                {
+                    loggedContainer = true;
+                    Debug.Log("[InvincibleMinions] sicknesses container = " + container.GetType().FullName);
+                }
 
+                // 容器可能是 List<Sickness>、Sickness 单实例，或 Sicknesses 组件
                 IEnumerable e = container as IEnumerable;
-                if (e == null) return;
+                if (e == null)
+                {
+                    Klei.AI.Sickness single = container as Klei.AI.Sickness;
+                    if (single != null)
+                    {
+                        try { single.Cure(go, null); Debug.Log("[InvincibleMinions] cured single sickness " + SafeId(single)); }
+                        catch (Exception ex) { Warn("cure single", ex); }
+                    }
+                    return;
+                }
 
                 List<Klei.AI.Sickness> list = new List<Klei.AI.Sickness>();
                 foreach (object o in e)
