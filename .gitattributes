@@ -1,0 +1,4 @@
+# Windows 批处理必须是 CRLF，否则部分环境执行异常
+*.bat text eol=crlf
+# 编译产物按二进制处理
+*.dll binary

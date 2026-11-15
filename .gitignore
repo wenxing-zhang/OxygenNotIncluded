@@ -1,0 +1,12 @@
+# 本地辅助目录（探针脚本、检索缓存），不入库
+.rivet/
+
+# 编译中间产物
+*.user
+*.suo
+*.pdb
+*.mdb
+
+# 系统文件
+Thumbs.db
+desktop.ini
