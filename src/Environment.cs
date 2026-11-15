@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
 using HarmonyLib;
 using Klei.AI;
 using UnityEngine;
@@ -68,6 +69,7 @@ namespace InvincibleMinions
     {
         private static bool logged;
         private static bool loggedContainer;
+        private static readonly BindingFlags Flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
 
         public static void Apply(GameObject go)
         {
@@ -96,6 +98,9 @@ namespace InvincibleMinions
         }
 
         // D2/D4 治疗已感染的疾病（辐射病等）
+        // U59：Modifiers.sicknesses 是 Klei.AI.Sicknesses 组件——没有字段、不实现 IEnumerable，
+        // 只有 Infect / IsInfected / Cure(Sickness) / Cure(string)。
+        // 旧实现按「IEnumerable 或单个 Sickness」取值，两条分支都拿不到东西，治疗实际上从未执行。
         public static void CureAll(GameObject go)
         {
             if (go == null) return;
@@ -103,42 +108,37 @@ namespace InvincibleMinions
             {
                 Modifiers mods = TraitRuntime.Find<Modifiers>(go);
                 if (mods == null) return;
-                object container = mods.sicknesses;
-                if (container == null) return;
+                Klei.AI.Sicknesses sz = mods.sicknesses;
+                if (sz == null) return;
                 if (!loggedContainer)
                 {
                     loggedContainer = true;
-                    Debug.Log("[InvincibleMinions] sicknesses container = " + container.GetType().FullName);
+                    Debug.Log("[InvincibleMinions] sicknesses component = " + sz.GetType().FullName);
                 }
+                if (!sz.IsInfected()) return;
 
-                // 容器可能是 List<Sickness>、Sickness 单实例，或 Sicknesses 组件
-                IEnumerable e = container as IEnumerable;
-                if (e == null)
-                {
-                    Klei.AI.Sickness single = container as Klei.AI.Sickness;
-                    if (single != null)
-                    {
-                        try { single.Cure(go, null); Debug.Log("[InvincibleMinions] cured single sickness " + SafeId(single)); }
-                        catch (Exception ex) { Warn("cure single", ex); }
-                    }
-                    return;
-                }
+                Db db = Db.Get();
+                if (db == null) return;
+                Database.Sicknesses defs = db.Sicknesses;
+                if (defs == null) return;
 
-                List<Klei.AI.Sickness> list = new List<Klei.AI.Sickness>();
-                foreach (object o in e)
+                int cured = 0;
+                FieldInfo[] fields = typeof(Database.Sicknesses).GetFields(Flags);
+                for (int i = 0; i < fields.Length; i++)
                 {
-                    Klei.AI.Sickness s = o as Klei.AI.Sickness;
-                    if (s != null) list.Add(s);
-                }
-
-                for (int i = 0; i < list.Count; i++)
-                {
+                    Klei.AI.Sickness s = null;
+                    try { s = fields[i].GetValue(defs) as Klei.AI.Sickness; }
+                    catch { s = null; }
+                    if (s == null) continue;
                     try
                     {
-                        list[i].Cure(go, null);
-                        Debug.Log("[InvincibleMinions] cured sickness " + SafeId(list[i]) + " on " + go.name);
+                        if (sz.Cure(s)) cured++;
                     }
-                    catch (Exception ex) { Warn("cure " + SafeId(list[i]), ex); }
+                    catch (Exception ex) { Warn("cure " + SafeId(s), ex); }
+                }
+                if (cured > 0)
+                {
+                    Debug.Log("[InvincibleMinions] cured " + cured + " sickness(es) on " + go.name);
                 }
             }
             catch (Exception e) { Warn("cureAll", e); }
