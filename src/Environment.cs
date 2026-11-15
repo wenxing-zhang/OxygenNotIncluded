@@ -32,6 +32,47 @@ namespace InvincibleMinions
         public static bool Prefix() { return false; }
     }
 
+    // ---------- C6b 烫伤 / 冻伤：连状态判定一起否决 ----------
+    // U59 的「冻伤」状态是 ScaldingMonitor 状态机 + IsScolding(Instance) 驱动，
+    // 只拦 TakeColdDamage/TakeScaldDamage 伤害入口不够：状态面板照样挂「冻伤」
+    // （实测截图：外界 1477.7°C / 阈值 999909.9°C 仍显示冻伤）。
+    // 这里把判定和退出条件一起按死，状态机永远进不去、进了也立刻退出。
+    [HarmonyPatch(typeof(ScaldingMonitor), "IsScalding")]
+    public static class Patch_Scalding_IsScalding
+    {
+        public static bool Prefix(ref bool __result) { __result = false; return false; }
+    }
+
+    [HarmonyPatch(typeof(ScaldingMonitor), "IsScaldingTimed")]
+    public static class Patch_Scalding_IsScaldingTimed
+    {
+        public static bool Prefix(ref bool __result) { __result = false; return false; }
+    }
+
+    [HarmonyPatch(typeof(ScaldingMonitor), "IsScolding")]
+    public static class Patch_Scalding_IsScolding
+    {
+        public static bool Prefix(ref bool __result) { __result = false; return false; }
+    }
+
+    [HarmonyPatch(typeof(ScaldingMonitor), "IsScoldingTimed")]
+    public static class Patch_Scalding_IsScoldingTimed
+    {
+        public static bool Prefix(ref bool __result) { __result = false; return false; }
+    }
+
+    [HarmonyPatch(typeof(ScaldingMonitor), "CanEscapeScalding")]
+    public static class Patch_Scalding_CanEscapeScalding
+    {
+        public static bool Prefix(ref bool __result) { __result = true; return false; }
+    }
+
+    [HarmonyPatch(typeof(ScaldingMonitor), "CanEscapeScolding")]
+    public static class Patch_Scalding_CanEscapeScolding
+    {
+        public static bool Prefix(ref bool __result) { __result = true; return false; }
+    }
+
     // ---------- C2 窒息：直接否决缺氧判定（SuffocationMonitor 是状态机，改不了字段）----------
     [HarmonyPatch(typeof(OxygenBreather), "get_IsOutOfOxygen")]
     public static class Patch_IsOutOfOxygen

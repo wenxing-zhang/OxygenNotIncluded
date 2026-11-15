@@ -12,6 +12,10 @@ namespace InvincibleMinions
         // 移动速度：由 Athletics 驱动。ONI 换算 = 1.0 + 0.1 × Athletics（格/秒）。
         // 1000 => 101 格/秒（约原版 34 倍）；10000 会到 1001 格/秒（一帧 16 格，必穿墙）。
         public const float AthleticsValue = 1000f;
+        // 冻伤阈值 ScoldingThreshold：温度 **低于** 它才冻伤。
+        // 设成 1000000 会让任何温度都「低于阈值」，全员永久挂「冻伤」
+        // （实测：当前外界 1477.7°C / 阈值 999909.9°C 仍显示冻伤）。
+        public const float VeryLow = -1000000f;
 
         // 越大越好（注意：FoodQuality / QualityOfLife 会推高士气，已移出，
         // 否则技能面板的「士气/需求」会变成 1000013/0 这类非法值）
@@ -23,7 +27,8 @@ namespace InvincibleMinions
             "Insulation", "Luminescence", "Decor", "GeneratorOutput",
             "MachinerySpeed", "RadiationResistance", "RadiationRecovery", "MaxUnderwaterTravelCost",
             "ToiletEfficiency", "TransitTubeTravelSpeed", "DiseaseCureSpeed", "DoctoredLevel",
-            "CarryAmount", "ScaldingThreshold", "ScoldingThreshold"
+            "CarryAmount", "ScaldingThreshold"
+            // ScoldingThreshold（冻伤阈值）不在白名单：语义相反，见下方单独处理
         };
 
         // 越小越好：设成 1000000 会反向坑（耗氧暴涨）。
@@ -63,6 +68,11 @@ namespace InvincibleMinions
                 if (IsIn(Positive, name))
                 {
                     value = name == "Athletics" ? AthleticsValue : Big;
+                }
+                else if (name == "ScoldingThreshold")
+                {
+                    // 冻伤阈值越低越难冻：-100 万度以下才冻伤 = 永不冻伤
+                    value = VeryLow;
                 }
                 else if (IsIn(Negative, name))
                 {
