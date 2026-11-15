@@ -10,26 +10,32 @@ namespace InvincibleMinions
     // ---------- 致命辐射病 ----------
     // U59 里辐射病的唯一施加入口是 RadiationMonitor.CheckRadiationLevel
     // （private static void CheckRadiationLevel(Instance, float)）。
-    // 直接跳过：不进入 Radsick 分级，也就不会有「致命辐射病」。
     [HarmonyPatch(typeof(RadiationMonitor), "CheckRadiationLevel")]
     public static class Patch_RadiationMonitor_CheckRadiationLevel
     {
         public static bool Prefix() { return false; }
     }
 
-    // ---------- 负面 effect 兜底清理 ----------
-    // 「极度明亮」= effect SUNLIGHT_BURNING（本地化 STRINGS.DUPLICANTS.MODIFIERS.SUNLIGHT_BURNING）。
-    // U59 里没有 SunlightMonitor，它由别处 Effects.Add 施加，没有单点可拦；
-    // 统一做法：每 0.5s 把 Effects 里 isBad == true 的 effect 全部摘掉
-    // （覆盖极度明亮 / 致命辐射病 / 鼓膜破裂 等一切负面状态）。
-    // Effects.effects 是 private List<Effect>，Effect.isBad 是 public 字段。
+    // ---------- 负面 effect 清理 ----------
+    // 教训（实测）：只按 Effect.isBad 过滤不够——「极度明亮」(SUNLIGHT_BURNING)
+    // 在 U59 里 isBad 为 false，所以 previous 版本一行都没清掉（日志 purged 出现 0 次）。
+    // 现在两条判据并用：isBad == true，或 effect 的 tag/id 命中黑名单。
+    // 另外首次运行会把当前效果全部打进日志，便于确认它到底是不是 effect。
     public static class EffectPurge
     {
         private static readonly BindingFlags Flags = BindingFlags.Instance | BindingFlags.NonPublic;
         private static FieldInfo effectsField;
         private static bool tried;
-        private static bool logged;
+        private static bool dumped;
         private static bool loggedFail;
+
+        // 归一化（去下划线、转小写）后做子串匹配
+        private static readonly string[] BadIdPatterns = new string[]
+        {
+            "sunlightburning", "sunburn",
+            "radiationexposuredeadly", "radiationexposuresevere",
+            "poppedeardrums", "eardrums"
+        };
 
         public static void Purge(GameObject go)
         {
@@ -43,49 +49,86 @@ namespace InvincibleMinions
                 {
                     tried = true;
                     effectsField = typeof(Effects).GetField("effects", Flags);
-                    if (effectsField == null)
-                    {
-                        Debug.LogWarning("[InvincibleMinions] Effects.effects field not found, purge disabled");
-                    }
                 }
-                if (effectsField == null) return;
 
-                List<Effect> list = effectsField.GetValue(fx) as List<Effect>;
+                List<Effect> list = null;
+                if (effectsField != null)
+                {
+                    list = effectsField.GetValue(fx) as List<Effect>;
+                }
+
+                // 诊断：首次把当前 effect 全量打出来（id + isBad）
+                if (!dumped)
+                {
+                    dumped = true;
+                    string s = "";
+                    if (list != null)
+                    {
+                        for (int i = 0; i < list.Count; i++)
+                        {
+                            Effect e = list[i];
+                            if (e == null) continue;
+                            s += SafeTag(e) + "(isBad=" + SafeIsBad(e) + ");";
+                        }
+                    }
+                    Debug.Log("[InvincibleMinions] effects on " + go.name
+                        + " count=" + (list == null ? -1 : list.Count) + " -> " + s);
+                }
+
                 if (list == null || list.Count == 0) return;
 
                 int removed = 0;
                 for (int i = list.Count - 1; i >= 0; i--)
                 {
                     Effect e = list[i];
-                    if (e == null || !e.isBad) continue;
+                    if (e == null) continue;
+                    if (!IsBad(e)) continue;
                     try
                     {
                         fx.Remove(e);
                         removed++;
                     }
-                    catch (Exception ex)
-                    {
-                        if (!loggedFail)
-                        {
-                            loggedFail = true;
-                            Debug.LogWarning("[InvincibleMinions] effect remove failed: " + ex.Message);
-                        }
-                    }
+                    catch (Exception ex) { Warn("effect remove failed: " + ex.Message); }
                 }
-
-                if (removed > 0 && !logged)
+                if (removed > 0)
                 {
-                    logged = true;
                     Debug.Log("[InvincibleMinions] purged " + removed + " bad effect(s) on " + go.name);
                 }
             }
-            catch (Exception e)
+            catch (Exception e) { Warn("effect purge failed: " + e.Message); }
+        }
+
+        private static bool IsBad(Effect e)
+        {
+            if (SafeIsBad(e)) return true;
+            string id = SafeTag(e);
+            if (string.IsNullOrEmpty(id)) return false;
+            string norm = id.Replace("_", "").ToLowerInvariant();
+            for (int i = 0; i < BadIdPatterns.Length; i++)
             {
-                if (!loggedFail)
-                {
-                    loggedFail = true;
-                    Debug.LogWarning("[InvincibleMinions] effect purge failed: " + e.Message);
-                }
+                if (norm.Contains(BadIdPatterns[i])) return true;
+            }
+            return false;
+        }
+
+        private static string SafeTag(Effect e)
+        {
+            try { return e.tag.ToString(); }
+            catch { return ""; }
+        }
+
+        private static bool SafeIsBad(Effect e)
+        {
+            try { return e.isBad; }
+            catch { return false; }
+        }
+
+        private static void Warn(string msg)
+        {
+            if (!loggedFail)
+            {
+                loggedFail = true;
+                Debug.LogWarning("[InvincibleMinions] " + msg);
             }
         }
     }
