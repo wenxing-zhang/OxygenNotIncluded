@@ -9,7 +9,9 @@ namespace InvincibleMinions
     public static class AttributeEnhancer
     {
         public const float Big = 1000000f;
-        public const float AthleticsValue = 100f;
+        // 移动速度：由 Athletics 驱动。100 太保守（用户反馈不够快），
+        // 但 1000000 会让小人一帧跨越多个格子（穿墙/寻路抖动），取中间值。
+        public const float AthleticsValue = 10000f;
 
         // 越大越好
         private static readonly string[] Positive = new string[]
