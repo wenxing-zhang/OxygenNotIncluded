@@ -207,6 +207,9 @@ namespace InvincibleMinions
             try { EnvironmentRuntime.Apply(gameObject); }
             catch { }
             tick++;
+            // 负面 effect 每 tick 摘一遍（极度明亮 / 致命辐射病 / 鼓膜破裂 等）
+            try { EffectPurge.Purge(gameObject); }
+            catch { }
             if ((tick & 3) == 0)
             {
                 try { EnvironmentRuntime.CureAll(gameObject); }
