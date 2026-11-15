@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Klei.AI;
 using UnityEngine;
 
@@ -24,6 +25,8 @@ namespace InvincibleMinions
         private bool loggedTick;
         private bool loggedInsts;
         private bool loggedSetFail;
+        // 记录 Amounts 里不存在的条（例如未装 Bionic DLC 的条），只试一次
+        private readonly HashSet<string> failedIds = new HashSet<string>();
 
         protected override void OnSpawn()
         {
@@ -257,16 +260,19 @@ namespace InvincibleMinions
         private void SafeSet(Amount amount, float value)
         {
             if (amount == null || amounts == null) return;
+            string id = amount.Id;
+            if (string.IsNullOrEmpty(id) || failedIds.Contains(id)) return;
             try
             {
-                amounts.SetValue(amount.Id, value);
+                amounts.SetValue(id, value);
             }
             catch (Exception e)
             {
+                failedIds.Add(id);
                 if (!loggedSetFail)
                 {
                     loggedSetFail = true;
-                    Debug.LogWarning("[InvincibleMinions] SetValue failed for " + amount.Id + " -> " + value + ": " + e.Message);
+                    Debug.LogWarning("[InvincibleMinions] SetValue failed for " + id + " -> " + value + ": " + e.Message + " (will skip unknown ids from now on)");
                 }
             }
         }
