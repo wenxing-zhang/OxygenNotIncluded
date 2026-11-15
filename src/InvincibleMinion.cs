@@ -1,5 +1,7 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
 using Klei.AI;
 using UnityEngine;
 
@@ -23,7 +25,6 @@ namespace InvincibleMinions
         private float timer;
         private bool ready;
         private bool loggedTick;
-        private bool loggedInsts;
         private bool loggedSetFail;
         private int tick;
         // 记录 Amounts 里不存在的条（例如未装 Bionic DLC 的条），只试一次
@@ -136,34 +137,9 @@ namespace InvincibleMinions
                 Debug.LogWarning("[InvincibleMinions] health reset failed: " + e.Message);
             }
 
-            // 路径 A：直写 AmountInstance.value（不依赖 id 字典匹配）
-            try
-            {
-                AmountInstance[] insts = GetComponentsInChildren<AmountInstance>(true);
-                if (insts != null)
-                {
-                    if (!loggedInsts)
-                    {
-                        loggedInsts = true;
-                        Debug.Log("[InvincibleMinions] amount instances=" + insts.Length);
-                    }
-                    for (int i = 0; i < insts.Length; i++)
-                    {
-                        AmountInstance inst = insts[i];
-                        if (inst == null) continue;
-                        string id = null;
-                        try { if (inst.amount != null) id = inst.amount.Id; } catch { id = null; }
-                        if (string.IsNullOrEmpty(id)) continue;
-                        int mode = ModeOf(id);
-                        if (mode == 0) continue;
-                        try { inst.value = mode > 0 ? inst.GetMax() : inst.GetMin(); } catch { }
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                Debug.LogWarning("[InvincibleMinions] inst path failed: " + e.Message);
-            }
+            // 路径 A 已移除：U59 里 AmountInstance 是普通 class（无基类、不是 Component），
+            // GetComponentsInChildren<AmountInstance>() 永远返回 0；Amounts 组件本身也没有
+            // 可反射的容器字段（元数据 FieldList 为空）。数值维持只走下面的路径 B（Amounts.SetValue）。
 
             // 路径 B：Amounts.SetValue（每条独立容错，单条失败不中断）
             Db db = Db.Get();
