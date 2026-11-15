@@ -13,22 +13,25 @@ namespace InvincibleMinions
         // 但 1000000 会让小人一帧跨越多个格子（穿墙/寻路抖动），取中间值。
         public const float AthleticsValue = 10000f;
 
-        // 越大越好
+        // 越大越好（注意：FoodQuality / QualityOfLife 会推高士气，已移出，
+        // 否则技能面板的「士气/需求」会变成 1000013/0 这类非法值）
         private static readonly string[] Positive = new string[]
         {
             "Construction", "Digging", "Machinery", "Athletics", "Learning", "Cooking",
             "Caring", "Strength", "Art", "Botanist", "Ranching", "LifeSupport", "Toggle",
             "PowerTinker", "FarmTinker", "SpaceNavigation", "Immunity", "GermResistance",
-            "Insulation", "Luminescence", "Decor", "FoodQuality", "GeneratorOutput",
+            "Insulation", "Luminescence", "Decor", "GeneratorOutput",
             "MachinerySpeed", "RadiationResistance", "RadiationRecovery", "MaxUnderwaterTravelCost",
             "ToiletEfficiency", "TransitTubeTravelSpeed", "DiseaseCureSpeed", "DoctoredLevel",
-            "CarryAmount", "QualityOfLife", "ScaldingThreshold", "ScoldingThreshold"
+            "CarryAmount", "ScaldingThreshold", "ScoldingThreshold"
         };
 
-        // 越小越好：设成 1000000 会反向坑（耗氧暴涨 / 期望值爆表）
+        // 越小越好：设成 1000000 会反向坑（耗氧暴涨）。
+        // 三个 Expectation 不能设 0 —— 设 0 会让「士气需求」变成 0，
+        // 技能面板拿它做比率时除零（实测：面板打不开，且无托管异常）。
         private static readonly string[] Negative = new string[]
         {
-            "AirConsumptionRate", "DecorExpectation", "FoodExpectation", "QualityOfLifeExpectation"
+            "AirConsumptionRate"
         };
 
         // 结构性 / 语义不明确：完全不碰
